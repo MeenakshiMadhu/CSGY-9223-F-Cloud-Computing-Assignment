@@ -1,4 +1,5 @@
 var checkout = {};
+var sessionId = null;
 
 $(document).ready(function() {
   var $messages = $('.messages-content'),
@@ -33,7 +34,8 @@ $(document).ready(function() {
         unstructured: {
           text: message
         }
-      }]
+      }],
+      sessionId: sessionId
     }, {});
   }
 
