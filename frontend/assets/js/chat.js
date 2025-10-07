@@ -50,7 +50,7 @@ $(document).ready(function() {
     callChatbotApi(msg)
       .then((response) => {
         console.log(response);
-        var data = response.data;
+        var data = JSON.parse(response.data.body); 
 
         if (data.messages && data.messages.length > 0) {
           console.log('received ' + data.messages.length + ' messages');
