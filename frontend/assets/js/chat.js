@@ -54,6 +54,8 @@ $(document).ready(function() {
         console.log(response);
         var data = JSON.parse(response.data.body); 
 
+        sessionId = data.sessionId;
+
         if (data.messages && data.messages.length > 0) {
           console.log('received ' + data.messages.length + ' messages');
 
