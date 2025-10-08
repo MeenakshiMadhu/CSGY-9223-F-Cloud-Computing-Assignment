@@ -23,7 +23,7 @@ def fetch_yelp_restaurants(cuisine, offset=0, limit=50):
     response = requests.get(url, headers=HEADERS, params=params)
     print(f"Status code: {response.status_code}")
     if response.status_code != 200:
-        print(f"❌ Error fetching {cuisine} (offset={offset}): {response.text}")
+        print(f"Error fetching {cuisine} (offset={offset}): {response.text}")
         return []
     return response.json().get("businesses", [])
     print(f"Fetched {len(data)} businesses for {cuisine} (offset={offset})")  # <--- debug
@@ -50,6 +50,10 @@ def main():
             for biz in results:
                 if biz["id"] in seen_ids:
                     continue
+                full_address = ", ".join(biz["location"].get("display_address", []))
+                if "New York, NY" not in full_address:
+                    continue  # Skip if not Manhattan
+
                 restaurant_data = {
                     "BusinessID": biz["id"],
                     "Name": biz.get("name", ""),
@@ -72,7 +76,7 @@ def main():
             offset += limit
             time.sleep(1)  # avoid hitting rate limit
 
-        print(f"✅ Collected {count} {cuisine} restaurants.")
+        print(f"Collected {count} {cuisine} restaurants.")
 
     # Write output to JSON file
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
