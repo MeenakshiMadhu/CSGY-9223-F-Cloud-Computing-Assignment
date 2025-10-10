@@ -5,7 +5,7 @@ from datetime import datetime
 
 # --- Configuration ---
 TABLE_NAME = 'yelp-restaurants'
-JSON_FILE_PATH = 'path/to/your/restaurants.json'
+JSON_FILE_PATH = 'yelp_manhattan_restaurants.json'
 
 # Initialize the DynamoDB resource using boto3
 dynamodb = boto3.resource('dynamodb')
@@ -40,19 +40,32 @@ def upload_data():
         return
 
     print(f"Found {len(restaurants)} restaurants to upload.")
+    processed_ids = set()
 
-   # batch write to DynamoDB
+    # batch write to DynamoDB
     with table.batch_writer() as batch:
-        for restaurant in restaurants:
+        for i, restaurant in enumerate(restaurants):
+            business_id = restaurant.get('BusinessID')
+            
+            # Check 1: Ensure the business ID exists
+            if not business_id:
+                print(f"WARNING: Skipping record #{i+1} because it is missing an 'id'.")
+                continue
+            
+            # Check 2: Ensure the business ID is not a duplicate
+            if business_id in processed_ids:
+                print(f"WARNING: Skipping duplicate BusinessID '{business_id}' for restaurant '{restaurant.get('name')}'.")
+                continue
 
             item = {
-                'BusinessID': restaurant.get('id'),
-                'Name': restaurant.get('name'),
-                'Address': ' '.join(restaurant.get('location', {}).get('display_address', [])),
-                'Coordinates': restaurant.get('coordinates'),
-                'NumberOfReviews': restaurant.get('review_count'),
-                'Rating': restaurant.get('rating'),
-                'ZipCode': restaurant.get('location', {}).get('zip_code'),
+                'BusinessID': business_id,
+                'Name': restaurant.get('Name'),
+                'Address': restaurant.get('Address'),
+                'Coordinates': restaurant.get('Coordinates'),
+                'NumberOfReviews': restaurant.get('NumReviews'),
+                'Rating': restaurant.get('Rating'),
+                'ZipCode': restaurant.get('ZipCode'),
+                'Cuisine': restaurant.get('Cuisine'),
                 'insertedAtTimestamp': datetime.utcnow().isoformat()
             }
             
@@ -64,9 +77,10 @@ def upload_data():
             
             # Add the item to the batch
             batch.put_item(Item=item_decimal)
+            processed_ids.add(business_id)
             print(f"Adding {item.get('Name')} to the batch...")
 
-    print("\nUpload complete!")
+    print(f"\nUpload complete! Successfully processed and uploaded {len(processed_ids)} unique restaurants.")
 
 if __name__ == '__main__':
     upload_data()
