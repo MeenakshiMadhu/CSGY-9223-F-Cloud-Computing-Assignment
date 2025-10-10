@@ -26,8 +26,6 @@ def fetch_yelp_restaurants(cuisine, offset=0, limit=50):
         print(f"Error fetching {cuisine} (offset={offset}): {response.text}")
         return []
     return response.json().get("businesses", [])
-    print(f"Fetched {len(data)} businesses for {cuisine} (offset={offset})")  # <--- debug
-    return data
 
 def main():
     all_restaurants = []
@@ -37,6 +35,7 @@ def main():
         seen_ids = set()
         offset = 0
         count = 0
+        cuisine_lower = cuisine.lower()
 
         while count < RESTAURANTS_PER_CUISINE:
             remaining = RESTAURANTS_PER_CUISINE - count
@@ -57,7 +56,7 @@ def main():
                 restaurant_data = {
                     "BusinessID": biz["id"],
                     "Name": biz.get("name", ""),
-                    "Address": ", ".join(biz["location"].get("display_address", [])),
+                    "Address": full_address,
                     "Coordinates": {
                         "lat": biz["coordinates"].get("latitude"),
                         "lon": biz["coordinates"].get("longitude")
@@ -65,7 +64,7 @@ def main():
                     "NumReviews": biz.get("review_count", 0),
                     "Rating": biz.get("rating", 0),
                     "ZipCode": biz["location"].get("zip_code", ""),
-                    "Cuisine": cuisine
+                    "Cuisine": cuisine_lower  # store lowercase
                 }
                 all_restaurants.append(restaurant_data)
                 seen_ids.add(biz["id"])
@@ -76,13 +75,13 @@ def main():
             offset += limit
             time.sleep(1)  # avoid hitting rate limit
 
-        print(f"Collected {count} {cuisine} restaurants.")
+        print(f"Collected {count} {cuisine_lower} restaurants.")
 
     # Write output to JSON file
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(all_restaurants, f, ensure_ascii=False, indent=2)
 
-    print(f"\nAll data saved to {OUTPUT_FILE}")
+    print(f"\n✅ All data saved to {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()
