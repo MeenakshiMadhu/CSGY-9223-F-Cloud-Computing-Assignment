@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import datetime
 
 # --- Configuration ---
-TABLE_NAME = 'yelp-restaurants'
+TABLE_NAME = 'yelp-restaurants2'
 JSON_FILE_PATH = 'yelp_manhattan_restaurants.json'
 
 # Initialize the DynamoDB resource using boto3
