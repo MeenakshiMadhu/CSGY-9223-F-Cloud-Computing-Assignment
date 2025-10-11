@@ -40,27 +40,8 @@ es = OpenSearch(
 def lambda_handler(event, context):
     
     print("--- LF2 triggered----")
-    
     #  Get the message from SQS
     try:
-        # print("----Receiving messages from SQS----")
-        # response = sqs.receive_message(
-        #     QueueUrl=SQS_QUEUE_URL,
-        #     MaxNumberOfMessages=5,
-        #     WaitTimeSeconds=10
-        # )
-        # print(f"----Received messages from SQS: {response}----")
-        # messages = response.get('Messages', [])
-        # print(f"Received {len(messages)} message(s) from SQS: {messages}")
-
-        # if not messages:
-        #     print("No messages in queue")
-        #     return {'statusCode': 200, 'body': 'No messages'}
-        
-        # for message in messages:
-        #     process_message(message)
-        # return {'statusCode': 200, 'body': f'Processed {len(messages)} messages'}
-
         for record in event['Records']:
             message = json.loads(record['body'])
             print(f"Processing message: {message}")
@@ -69,7 +50,8 @@ def lambda_handler(event, context):
 
     except Exception as e:
         print(f"Error receiving messages from SQS: {e}")
-        return {'statusCode': 500, 'body': str(e)}
+        # return {'statusCode': 500, 'body': str(e)}
+        raise e
 
 
 ##### -------------- FETCH RESTOS FROM ES --------------- ########
@@ -81,13 +63,13 @@ def get_restaurant_suggestions(cuisine):
         "size": 5,
         "query": {
             "function_score": {
-                "query": { "match": { "Cuisine": cuisine } },
+                "query": { "match": { "Cuisine": cuisine.lower() } },
                 "random_score": {}
             }
         }
     }
     try:
-        response = es.search(index="restaurants", body=query)
+        response = es.search(index="restaurants2", body=query)
         print(f"ES Response: {response}")
         hits = response['hits']['hits']
         if hits:
@@ -154,50 +136,39 @@ def send_email(user_email, subject, body):
         return True
     except Exception as e:
         print(f"Failed to send email to {user_email}: {e}")
-        return False
+        raise e
 
 ##### --------------------- PROCESS MESSAGE ---------------------##########
 def process_message(message):
     print("--- Message Processor triggered----")
-    try:
-
-        body = message
-        print(f"Processing request: {body}")
-      
-        cuisine = body['Cuisine']
-        location = body['Location']
-        dining_time = body['DiningTime']
-        num_people = body['NumberOfPeople']
-        user_email = body['Email']
-
-        if not all([cuisine, user_email, location]):
-            print(f"Message missing required slots.")
-            # sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
-            return
-
-        print(f"Processing request for {cuisine} food in {location} for {user_email}")
-
-        # Search OpenSearch for restaurants with this cuisine
-        restaurant_ids = get_restaurant_suggestions(cuisine)
-        if not restaurant_ids:
-            print(f"Could not find restaurants for cuisine: {cuisine}.")
-            # sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
-            return
-
-        restaurants_details = get_restaurants_details_batch(restaurant_ids)
-        if not restaurants_details:
-            print(f"Could not fetch details from DynamoDB.")
-            # sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
-            return
-
-        # Format and send the email
-        email_subject = "Your Dining Concierge Restaurant Suggestions!"
-        email_body = format_email_body(message, restaurants_details)
-        email_sent = send_email(user_email, email_subject, email_body)
-        
-        if email_sent:
-            # sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
-            print(f"Successfully processed and deleted message for {user_email}.")
+    body = message
+    print(f"Processing request: {body}")
     
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+    cuisine = body['Cuisine']
+    location = body['Location']
+    dining_time = body['DiningTime']
+    num_people = body['NumberOfPeople']
+    user_email = body['Email']
+    if not all([cuisine, user_email, location]):
+        print(f"Message missing required slots.")
+        # sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
+        return
+    print(f"Processing request for {cuisine} food in {location} for {user_email}")
+    # Search OpenSearch for restaurants with this cuisine
+    restaurant_ids = get_restaurant_suggestions(cuisine)
+    if not restaurant_ids:
+        print(f"Could not find restaurants for cuisine: {cuisine}.")
+        # sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
+        return
+    restaurants_details = get_restaurants_details_batch(restaurant_ids)
+    if not restaurants_details:
+        print(f"Could not fetch details from DynamoDB.")
+        # sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=receipt_handle)
+        return
+    # Format and send the email
+    email_subject = "Your Dining Concierge Restaurant Suggestions!"
+    email_body = format_email_body(message, restaurants_details)
+    email_sent = send_email(user_email, email_subject, email_body)
+    
+    if email_sent:
+        print(f"Successfully processed and deleted message for {user_email}.")
